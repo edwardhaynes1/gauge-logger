@@ -83,6 +83,8 @@ Produces two figures (linear and log y-axis) showing:
 - EL-Flow measured flow (He-indicated, corrected to actual N₂ via ×0.714)
 - Origin-forced linear regression statistics (slope, R², mean ratio Q_meas/Q_HP)
 
+Statistical analysis uses origin-forced linear regression (slope = Σ(Q_HP·Q_meas) / Σ(Q_HP²)) to compare measured flow against the H–P prediction. R² quantifies conformance to the expected P² pressure scaling; the mean ratio Q_meas/Q_HP quantifies the absolute deviation from the H–P prediction. Results and console output are printed per run and summarised across all runs.
+
 ## Experiment
 
 Capillary: 50 µm ID × 2 m, 316L stainless steel  
