@@ -48,7 +48,7 @@ ELFLOW_SPIKE_THRESHOLD = 0.15          # mln/min He-indicated; above = spike
 MIN_ELFLOW_SAMPLES     = 3             # min samples per bin to plot
 BIN_WIDTH_MBAR         = 20.0          # mbar bin width for EL-Flow averaging
 
-X_MIN_MBAR = 1e2
+X_MIN_MBAR = 500.0
 X_MAX_MBAR = 5000.0
 
 DATA_COLOURS = ["#1f77b4", "#2ca02c", "#9467bd", "#d62728", "#ff7f0e"]
@@ -265,6 +265,10 @@ def make_figure(datasets, log_y=False):
     if log_y:
         ax.set_yscale("log")
     ax.set_xlim(X_MIN_MBAR, X_MAX_MBAR)
+
+    # Explicit x-axis ticks for legibility across the 500–5000 mbar range
+    ax.set_xticks([500, 1000, 2000, 5000])
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x):,}"))
 
     y_desc = "log" if log_y else "linear"
     ax.set_xlabel("\u0394P  (mbar)", fontsize=12, labelpad=8)

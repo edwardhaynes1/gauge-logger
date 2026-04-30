@@ -35,7 +35,7 @@ pip install matplotlib numpy scipy
 
 ## Configuration
 
-Edit the `CONFIGURATION` block at the top of `GAUGE_LOGGER_260422.py`:
+Edit the `CONFIGURATION` block at the top of `GAUGE_LOGGER.py`:
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -50,7 +50,7 @@ Edit the `CONFIGURATION` block at the top of `GAUGE_LOGGER_260422.py`:
 ## Usage
 
 ```
-python GAUGE_LOGGER_260422.py
+python GAUGE_LOGGER.py
 ```
 
 The EL-Flow is auto-detected on startup by scanning all available COM ports. The LabJack U3 is detected automatically by device type.
@@ -73,8 +73,8 @@ gauge_log_YYYYMMDD_HHMMSS.csv
 ## Analysis
 
 ```
-python plot_capillary.py                   # opens a file picker
-python plot_capillary.py data/*.csv        # pass files directly
+python GRAPH-PLOT.py                   # opens a file picker
+python GRAPH-PLOT.py data/*.csv        # pass files directly
 ```
 
 Produces two figures (linear and log y-axis) showing:
@@ -87,7 +87,7 @@ Produces two figures (linear and log y-axis) showing:
 
 Capillary: 50 µm ID × 2 m, 316L stainless steel  
 Gas: nitrogen  
-Upstream pressure decays from ~1.8 bar to ~1.0 bar absolute over ~8 hours per run.  
+Upstream pressure decays from ~1.8 bar to ~1.0 bar absolute over 6–16 hours per run.  
 Downstream pressure: ultra-high vacuum (~10⁻⁵ mbar), so ΔP ≈ P_upstream.
 
 ## Data
@@ -99,5 +99,6 @@ Experimental runs are in the `data/` folder:
 | `gauge_log_20260427_092736.csv` | 27/04/26 | ~12 hours |
 | `gauge_log_20260428_090051.csv` | 28/04/26 | ~6 hours |
 | `gauge_log_20260428_144730.csv` | 28/04/26 | ~7 hours |
+| `gauge_log_20260429_100309.csv` | 29/04/26 | ~16 hours |
 
 Run `gauge_log_20260423_091558.csv` (23/04/26) is excluded from analysis — EL-Flow signal averaging was not yet implemented at the time of collection.
