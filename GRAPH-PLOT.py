@@ -222,6 +222,97 @@ def print_statistics(label, st):
 # PLOTTING
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# RESIDUALS ANALYSIS  (Step 10: normality + homoscedasticity checks)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def make_residuals_figure(datasets):
+    """
+    For each dataset and for all datasets combined, produce:
+      - Histogram of residuals  (r = Q_meas - slope * Q_HP)
+      - Q-Q plot of residuals against theoretical normal
+      - Residuals vs Q_HP  (homoscedasticity check)
+
+    If residuals are approximately normal:
+      - Histogram looks roughly bell-shaped
+      - Q-Q plot points follow the diagonal line
+    If homoscedastic:
+      - Residuals vs Q_HP shows no systematic trend or fanning
+    """
+    # Collect all residuals across all datasets for combined plot
+    all_residuals = []
+    all_hp_q      = []
+
+    n_ds = len([ds for ds in datasets if ds["stats"]])
+    if n_ds == 0:
+        print("  [!] No datasets with statistics for residuals analysis.")
+        return
+
+    # One figure per dataset + one combined figure
+    for ds in datasets:
+        if not ds["stats"]:
+            continue
+        st       = ds["stats"]
+        residuals = st["ef_q"] - st["slope"] * st["hp_q"]
+        all_residuals.append(residuals)
+        all_hp_q.append(st["hp_q"])
+
+        _plot_residual_diagnostics(residuals, st["hp_q"], ds["label"])
+
+    # Combined figure across all runs
+    if len(all_residuals) > 1:
+        combined_r    = np.concatenate(all_residuals)
+        combined_hp_q = np.concatenate(all_hp_q)
+        _plot_residual_diagnostics(combined_r, combined_hp_q, "All runs combined")
+
+
+def _plot_residual_diagnostics(residuals, hp_q, label):
+    """Draw histogram, Q-Q plot, and residuals vs Q_HP for one set of residuals."""
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    fig.suptitle(f"Residual diagnostics — {label}", fontsize=12)
+
+    # ── 1. Histogram ──────────────────────────────────────────────────────────
+    ax = axes[0]
+    ax.hist(residuals, bins="auto", color="#1f77b4", edgecolor="white", alpha=0.8)
+    ax.axvline(0, color="#d62728", linewidth=1.0, linestyle="--")
+    ax.set_xlabel("Residual  (mln/min actual N₂)", fontsize=10)
+    ax.set_ylabel("Count", fontsize=10)
+    ax.set_title("Histogram of residuals", fontsize=10)
+    ax.grid(color="#eeeeee", linewidth=0.6)
+
+    # ── 2. Q-Q plot ────────────────────────────────────────────────────────────
+    ax = axes[1]
+    (osm, osr), (slope_qq, intercept_qq, r_qq) = stats.probplot(residuals, dist="norm")
+    ax.scatter(osm, osr, s=20, color="#1f77b4", alpha=0.7, zorder=3)
+    x_line = np.array([min(osm), max(osm)])
+    ax.plot(x_line, slope_qq * x_line + intercept_qq,
+            color="#d62728", linewidth=1.2, linestyle="--", zorder=2,
+            label=f"R² = {r_qq**2:.4f}")
+    ax.set_xlabel("Theoretical quantiles", fontsize=10)
+    ax.set_ylabel("Sample quantiles", fontsize=10)
+    ax.set_title("Q-Q plot (normal)", fontsize=10)
+    ax.legend(fontsize=8)
+    ax.grid(color="#eeeeee", linewidth=0.6)
+
+    # ── 3. Residuals vs Q_HP  (homoscedasticity) ───────────────────────────────
+    ax = axes[2]
+    ax.scatter(hp_q, residuals, s=20, color="#1f77b4", alpha=0.7, zorder=3)
+    ax.axhline(0, color="#d62728", linewidth=1.0, linestyle="--", zorder=2)
+    ax.set_xlabel("Q_HP  (mln/min actual N₂)", fontsize=10)
+    ax.set_ylabel("Residual  (mln/min actual N₂)", fontsize=10)
+    ax.set_title("Residuals vs Q_HP\n(homoscedasticity check)", fontsize=10)
+    ax.grid(color="#eeeeee", linewidth=0.6)
+
+    # Print Shapiro-Wilk normality test to console
+    if len(residuals) >= 3:
+        stat_sw, p_sw = stats.shapiro(residuals)
+        print(f"  Shapiro-Wilk normality test ({label}):")
+        print(f"    W = {stat_sw:.4f},  p = {p_sw:.4e}  "
+              f"({'normal distribution not rejected' if p_sw > 0.05 else 'normality rejected'} at alpha=0.05)")
+
+    plt.tight_layout()
+
+
 def make_figure(datasets, log_y=False):
     """Draw one figure. log_y=True for log y-axis, False for linear."""
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -316,6 +407,7 @@ def main(paths):
 
     make_figure(datasets, log_y=False)
     make_figure(datasets, log_y=True)
+    make_residuals_figure(datasets)
     plt.show()
 
 
