@@ -1,4 +1,4 @@
-# gauge-logger
+markdown# gauge-logger
 
 Data acquisition system for capillary flow characterisation. Logs upstream pressure, vacuum chamber pressure, and mass flow rate to CSV for Hagen–Poiseuille validation experiments.
 
@@ -46,13 +46,18 @@ Edit the CONFIGURATION block at the top of `GAUGE_LOGGER.py`:
 
 ## Calibration
 
-**Upstream pressure transmitter**
-- Calibrated: 20 March 2026, vented to atmosphere (953 hPa, MeteoSwiss BER)
-- Shunt resistance: 98.6 Ω (measured with calibrated multimeter)
-- Initial data logging used nominal values (100 Ω shunt, 1.00 bar reference), introducing systematic errors
-- All analysis uses post-acquisition corrected pressures
+**Upstream pressure transmitter status:**
 
-**Correction formula:**
+✅ **GAUGE_LOGGER.py updated 15 May 2026** with corrected calibration values
+- Current values: 98.6 Ω shunt, 0.036 bar offset
+- **All data logged from 15 May 2026 onwards is correct and requires no post-processing**
+
+**Historical calibration (before 15 May 2026):**
+- Used incorrect values: 100 Ω shunt (actual: 98.6 Ω), 0.13 bar offset (assumed 1.00 bar, actual: 0.953 bar)
+- Atmospheric reference from MeteoSwiss BER station: 953 hPa on 20 March 2026
+- Historical data requires correction via `CORRECT_GAUGE-LOGS.py` (see Data correction section)
+
+**Correction formula (for historical data only):**
 P_corrected = ((((P_logged - 0.13)/0.625) + 4) × 1.0142 - 4) × 0.625 + 0.036
 
 Where:
@@ -72,11 +77,15 @@ The EL-Flow is auto-detected on startup by scanning all available COM ports. The
 Output is written to a timestamped CSV in the same folder as the script:
 `gauge_log_YYYYMMDD_HHMMSS.csv`
 
+**Note:** Data logged with the current version (15 May 2026 onwards) uses corrected calibration and is accurate without post-processing.
+
 ## Data correction
 
-⚠️ **Important:** Raw CSV files (in `OLD-DATA/` folder) contain uncorrected pressure readings.
+⚠️ **Only applies to data collected before 15 May 2026**
 
-To correct raw gauge logs for calibration errors:
+Historical raw CSV files (in `OLD-DATA/` folder) contain uncorrected pressure readings.
+
+To correct historical gauge logs for calibration errors:
 
 ```bash
 python CORRECT_GAUGE-LOGS.py
@@ -84,7 +93,7 @@ python CORRECT_GAUGE-LOGS.py
 
 Select the CSV file to correct. Output saved as `*_CORRECTED.csv`.
 
-Corrected files are provided in the root `data/` folder.
+**Data collected after 15 May 2026 uses corrected calibration and requires no correction.**
 
 ## CSV columns
 
@@ -133,7 +142,7 @@ Uncorrected raw data files are archived in `OLD-DATA/` folder.
 
 Run `gauge_log_20260423_091558.csv` (23/04/26) is excluded from analysis — EL-Flow signal averaging was not yet implemented at the time of collection.
 
-Atmospheric pressure reference data from MeteoSwiss Bern station (20 March 2026) is included in `METAS-BERN-DATA_260320_ogd-smn_bern.csv`.
+Atmospheric pressure reference data from MeteoSwiss Bern station (20 March 2026) is included in `METAS-BERN-DATA_260320_ogd-smn_ber_h_recent.csv`.
 
 ---
 

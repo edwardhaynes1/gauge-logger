@@ -3,16 +3,16 @@ gauge_logger.py  —  LabJack U3 dual-input (FIO0 + FIO2) + EL-Flow data logger
 ================================================================================
 Setup
 -----
-  LabJack U3  →  4–20 mA pressure transmitter on FIO0 via 100 Ω shunt resistor
+  LabJack U3  →  4–20 mA pressure transmitter on FIO0 via 98.6 Ω shunt resistor
   LabJack U3  →  Vacuum gauge analog voltage input on FIO2 (log-linear conversion)
   Serial      →  Bronkhorst F-200CV (propar library, 1 Hz)
 
 Wiring (LabJack U3)
 -------------------
   Transmitter +  →  VS  (5 V supply, pin 1)
-  Transmitter −  →  FIO0  and one leg of 100 Ω shunt
+  Transmitter −  →  FIO0  and one leg of 98.6 Ω shunt
   Other shunt leg →  GND (pin 2)
-  FIO0 reads the voltage across the shunt; I = V / R, P = (I_mA − 4) × (10/16) + 0.13
+  FIO0 reads the voltage across the shunt; I = V / R, P = (I_mA − 4) × (10/16) + 0.036
 
   Vacuum gauge analog out  →  FIO2 (log-linear: log10(P/mbar) = 5.389 × V − 11.329)
 
@@ -28,6 +28,12 @@ Requirements
 Configuration
 -------------
   Edit the CONFIGURATION block below before first run.
+
+Calibration Note
+----------------
+  Data collected before 15 May 2026 used incorrect calibration values
+  (100 Ω shunt, 0.13 bar offset) and requires post-acquisition correction
+  via CORRECT_GAUGE-LOGS.py. Data collected after 15 May 2026 is correct.
 """
 
 import os
@@ -64,7 +70,14 @@ POLLING_HZ = 1            # Hz
 # Note: on the U3, FIO pins double as analogue inputs; getAIN(n) reads FIOn.
 LABJACK_FIO_UPSTREAM = 0   # FIO pin for upstream transmitter shunt (4–20 mA)
 LABJACK_FIO_VACUUM   = 2   # FIO pin for vacuum gauge analog voltage output
-LABJACK_SHUNT_OHM    = 100 # shunt resistor in Ω (between FIO0 and GND)
+
+# CORRECTED CALIBRATION VALUES (15 May 2026)
+# Calibrated: 20 March 2026, vented to atmosphere (953 hPa, MeteoSwiss BER)
+# Shunt measured with calibrated multimeter
+LABJACK_SHUNT_OHM = 98.6   # Measured shunt resistance (Ω)
+LABJACK_P_OFFSET  = 0.036  # Calibrated offset (bar) at 953 hPa atmospheric
+# Previous values (before 15 May 2026): 100.0 Ω, 0.13 bar (assumed 1.00 bar)
+# Historical data requires correction via CORRECT_GAUGE-LOGS.py
 
 # Vacuum gauge log-linear conversion: log10(P / mbar) = VACUUM_SLOPE × V + VACUUM_INTERCEPT
 VACUUM_SLOPE     =  5.389   # decades per volt
@@ -75,7 +88,6 @@ VACUUM_INTERCEPT = -11.329  # log10(mbar) at 0 V
 LABJACK_I_MIN    = 4.0   # mA at zero / minimum pressure
 LABJACK_I_SPAN   = 16.0  # mA full-span  (20 − 4)
 LABJACK_P_SPAN   = 10.0  # bar full-span of the transmitter
-LABJACK_P_OFFSET = 0.13  # bar at I_MIN (zero-pressure offset)
 
 # Output CSV path — saved in the same folder as this script, timestamped at launch
 CSV_PATH = Path(__file__).parent / f"gauge_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
