@@ -62,7 +62,7 @@ Full calibration history is documented in `CALIBRATION/GEMS_Calibration_Record.d
 
 ### Event 1 — 15/05/2026 (shunt and offset correction)
 
-✅ Applied in `GAUGE_LOGGER.py` from 15/05/2026 onwards.
+Applied in `GAUGE_LOGGER.py` from 15/05/2026 onwards.
 
 - Shunt resistance corrected: 100.0 Ω (assumed) → 98.6 Ω (measured with calibrated multimeter)
 - Atmospheric reference corrected: 1.000 bar (assumed) → 0.953 bar (MeteoSwiss BER, 20/03/2026)
@@ -77,7 +77,7 @@ P_corrected = ((((P_logged - 0.13) / 0.625) + 4) × 1.0142 - 4) × 0.625 + 0.036
 
 ### Event 2 — 29/05/2026 (Keller cross-calibration, gain correction)
 
-✅ Applied in `GAUGE_LOGGER.py` from 29/05/2026 onwards.
+Applied in `GAUGE_LOGGER.py` from 29/05/2026 onwards.
 
 - Keller Series 30 absolute transmitter used as independent reference across 0.93–3.60 bar (N₂, capillary bench)
 - OLS regression (Keller as reference): `Keller = 1.0201 × GEMS + 0.0358`
@@ -113,7 +113,7 @@ To log GEMS and Keller simultaneously for cross-calibration validation:
 
 ## Data correction
 
-⚠️ **Only applies to data collected before 15/05/2026**
+**Only applies to data collected before 15/05/2026**
 
 Historical raw CSV files (in `ARCHIVED-DATA/UNCALIBRATED-SHUNT-DATA/`) contain uncorrected pressure readings.
 
