@@ -35,6 +35,20 @@ from datetime import datetime
 from scipy import stats
 
 # ─────────────────────────────────────────────────────────────────────────────
+# GLOBAL FONT SIZES
+# ─────────────────────────────────────────────────────────────────────────────
+
+plt.rcParams.update({
+    "font.size":        32,
+    "axes.titlesize":   40,
+    "axes.labelsize":   36,
+    "xtick.labelsize":  30,
+    "ytick.labelsize":  30,
+    "legend.fontsize":  28,
+    "figure.titlesize": 44,
+})
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CONFIGURATION
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -268,16 +282,16 @@ def make_residuals_figure(datasets):
 
 def _plot_residual_diagnostics(residuals, hp_q, label):
     """Draw histogram, Q-Q plot, and residuals vs Q_HP for one set of residuals."""
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-    fig.suptitle(f"Residual diagnostics — {label}", fontsize=12)
+    fig, axes = plt.subplots(1, 3, figsize=(36, 12))
+    fig.suptitle(f"Residual diagnostics — {label}", fontsize=36)
 
     # ── 1. Histogram ──────────────────────────────────────────────────────────
     ax = axes[0]
     ax.hist(residuals, bins="auto", color="#1f77b4", edgecolor="white", alpha=0.8)
     ax.axvline(0, color="#d62728", linewidth=1.0, linestyle="--")
-    ax.set_xlabel("Residual  (mln/min actual N₂)", fontsize=10)
-    ax.set_ylabel("Count", fontsize=10)
-    ax.set_title("Histogram of residuals", fontsize=10)
+    ax.set_xlabel("Residual  (mln/min actual N₂)", fontsize=30)
+    ax.set_ylabel("Count", fontsize=30)
+    ax.set_title("Histogram of residuals", fontsize=30)
     ax.grid(color="#eeeeee", linewidth=0.6)
 
     # ── 2. Q-Q plot ────────────────────────────────────────────────────────────
@@ -288,19 +302,19 @@ def _plot_residual_diagnostics(residuals, hp_q, label):
     ax.plot(x_line, slope_qq * x_line + intercept_qq,
             color="#d62728", linewidth=1.2, linestyle="--", zorder=2,
             label=f"R² = {r_qq**2:.4f}")
-    ax.set_xlabel("Theoretical quantiles", fontsize=10)
-    ax.set_ylabel("Sample quantiles", fontsize=10)
-    ax.set_title("Q-Q plot (normal)", fontsize=10)
-    ax.legend(fontsize=8)
+    ax.set_xlabel("Theoretical quantiles", fontsize=30)
+    ax.set_ylabel("Sample quantiles", fontsize=30)
+    ax.set_title("Q-Q plot (normal)", fontsize=30)
+    ax.legend(fontsize=26)
     ax.grid(color="#eeeeee", linewidth=0.6)
 
     # ── 3. Residuals vs Q_HP  (homoscedasticity) ───────────────────────────────
     ax = axes[2]
     ax.scatter(hp_q, residuals, s=20, color="#1f77b4", alpha=0.7, zorder=3)
     ax.axhline(0, color="#d62728", linewidth=1.0, linestyle="--", zorder=2)
-    ax.set_xlabel("Q_HP  (mln/min actual N₂)", fontsize=10)
-    ax.set_ylabel("Residual  (mln/min actual N₂)", fontsize=10)
-    ax.set_title("Residuals vs Q_HP\n(homoscedasticity check)", fontsize=10)
+    ax.set_xlabel("Q_HP  (mln/min actual N₂)", fontsize=30)
+    ax.set_ylabel("Residual  (mln/min actual N₂)", fontsize=30)
+    ax.set_title("Residuals vs Q_HP\n(homoscedasticity check)", fontsize=30)
     ax.grid(color="#eeeeee", linewidth=0.6)
 
     # Print Shapiro-Wilk normality test to console
@@ -315,7 +329,7 @@ def _plot_residual_diagnostics(residuals, hp_q, label):
 
 def make_figure(datasets, log_y=False):
     """Draw one figure. log_y=True for log y-axis, False for linear."""
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(26, 16))
 
     # H-P reference line across full x range
     p_ref = np.geomspace(X_MIN_MBAR, X_MAX_MBAR, 500)
@@ -346,7 +360,7 @@ def make_figure(datasets, log_y=False):
                     f"Mean ratio  Q_meas / Q_HP = {st['ratio_mean']:.3f} \u00b1 {st['ratio_std']:.3f}"
                 )
                 ax.text(0.98, 0.05, ann,
-                        transform=ax.transAxes, fontsize=8,
+                        transform=ax.transAxes, fontsize=26,
                         va="bottom", ha="right",
                         bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
                                   edgecolor="#cccccc", alpha=0.9))
@@ -362,11 +376,11 @@ def make_figure(datasets, log_y=False):
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x):,}"))
 
     y_desc = "log" if log_y else "linear"
-    ax.set_xlabel("\u0394P  (mbar)", fontsize=12, labelpad=8)
-    ax.set_ylabel("Flow rate  (mln/min, actual N2)", fontsize=12, labelpad=8)
+    ax.set_xlabel("\u0394P  (mbar)", fontsize=36, labelpad=8)
+    ax.set_ylabel("Flow rate  (mln/min, actual N2)", fontsize=36, labelpad=8)
     ax.set_title(
         f"Capillary conductance: Hagen-Poiseuille vs measured  [{y_desc} y-axis]",
-        fontsize=14, pad=14)
+        fontsize=40, pad=14)
 
     ax.grid(which="major", color="#dddddd", linewidth=0.8, zorder=0)
     ax.grid(which="minor", color="#eeeeee", linewidth=0.4, zorder=0)
@@ -376,17 +390,96 @@ def make_figure(datasets, log_y=False):
             ax.axvline(p_vline, color="#bbbbbb", linewidth=0.8,
                        linestyle=":", zorder=1)
             ax.text(p_vline * 1.05, ax.get_ylim()[0], "1 atm",
-                    color="#999999", fontsize=8, va="bottom")
+                    color="#999999", fontsize=26, va="bottom")
 
-    ax.legend(fontsize=9, loc="upper left")
+    ax.legend(fontsize=28, loc="upper left")
 
     note = (f"50 um ID x 2.0 m  |  N2  eta = {ETA_N2_PA_S:.2e} Pa.s  |  "
             f"EL-Flow x{ELFLOW_N2_CORRECTION:.3f} (He->N2)  |  "
             f"dP = P1 since P2 ~= 0")
-    fig.text(0.5, 0.01, note, ha="center", color="#888888", fontsize=8)
+    fig.text(0.5, 0.01, note, ha="center", color="#888888", fontsize=24)
 
     plt.tight_layout(rect=[0, 0.03, 1, 1])
     return fig
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RATIO PLOT  (Q_meas / Q_HP  vs  deltaP)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def make_ratio_figure(datasets):
+    """
+    Ratio plot: Q_measured / Q_HP  vs  deltaP  (log x-axis).
+
+    Shows whether the systematic bias between measurement and H-P prediction
+    is pressure-dependent (i.e. whether the capillary deviates from pure P^2
+    scaling).  A flat line at ratio = 1 means perfect agreement everywhere.
+    A flat line != 1 means a uniform scaling offset (e.g. r slightly wrong).
+    A sloped / curved trend means the deviation changes with pressure.
+
+    Also draws:
+      - Dashed line at ratio = 1.0  (perfect agreement)
+      - Dotted line at mean ratio per dataset (with ± 1 SD band)
+    """
+    fig, ax = plt.subplots(figsize=(26, 14))
+
+    any_data = False
+
+    for ds in datasets:
+        st = ds.get("stats")
+        if st is None:
+            continue
+
+        ratios = st["ratios"]          # Q_meas / Q_HP, one per pressure bin
+        ef_p   = st["ef_p"]            # bin-centre pressures (mbar)
+        mean_r = st["ratio_mean"]
+        std_r  = st["ratio_std"]
+
+        ax.scatter(ef_p, ratios,
+                   color=ds["col"], s=40, zorder=5, marker="o",
+                   label=f"{ds['label']}  (mean={mean_r:.3f} ± {std_r:.3f})")
+        ax.plot(ef_p, ratios,
+                color=ds["col"], linewidth=1.0, linestyle="--", alpha=0.6, zorder=4)
+
+        # Mean ± 1 SD band
+        ax.axhline(mean_r, color=ds["col"], linewidth=1.2, linestyle=":",
+                   alpha=0.8, zorder=3)
+        ax.axhspan(mean_r - std_r, mean_r + std_r,
+                   color=ds["col"], alpha=0.07, zorder=1)
+
+        any_data = True
+
+    if not any_data:
+        print("  [!] No paired EL-Flow / H-P data available for ratio plot.")
+        plt.close(fig)
+        return
+
+    # Perfect-agreement reference
+    ax.axhline(1.0, color="#aaaaaa", linewidth=1.4, linestyle="--",
+               zorder=2, label="Ratio = 1.0  (perfect agreement)")
+
+    ax.set_xscale("log")
+    ax.set_xlim(X_MIN_MBAR, X_MAX_MBAR)
+    ax.set_xticks([500, 1000, 2000, 5000])
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x):,}"))
+
+    # Y limits: centre on 1.0 with a little headroom
+    ax.set_xlabel("ΔP  (mbar)", fontsize=36, labelpad=8)
+    ax.set_ylabel("Q_measured / Q_HP  (—)", fontsize=36, labelpad=8)
+    ax.set_title("Ratio plot: measured / H-P predicted flow vs pressure",
+                 fontsize=40, pad=14)
+
+    ax.grid(which="major", color="#dddddd", linewidth=0.8, zorder=0)
+    ax.grid(which="minor", color="#eeeeee", linewidth=0.4, zorder=0)
+    ax.legend(fontsize=28, loc="upper right")
+
+    note = (f"50 um ID x 2.0 m  |  N2  eta = {ETA_N2_PA_S:.2e} Pa.s  |  "
+            f"EL-Flow x{ELFLOW_N2_CORRECTION:.3f} (He->N2)  |  "
+            f"shaded band = ± 1 SD  |  dotted = mean ratio")
+    fig.text(0.5, 0.01, note, ha="center", color="#888888", fontsize=24)
+
+    plt.tight_layout(rect=[0, 0.03, 1, 1])
+    return fig
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN
@@ -407,6 +500,7 @@ def main(paths):
 
     make_figure(datasets, log_y=False)
     make_figure(datasets, log_y=True)
+    make_ratio_figure(datasets)
     make_residuals_figure(datasets)
     plt.show()
 

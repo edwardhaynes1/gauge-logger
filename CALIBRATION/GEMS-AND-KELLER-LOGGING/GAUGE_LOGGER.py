@@ -6,14 +6,14 @@ Setup
   LabJack U3  →  4–20 mA pressure transmitter on FIO0 via 98.6 Ω shunt resistor
   LabJack U3  →  Vacuum gauge analog voltage input on FIO2 (log-linear conversion)
   Serial      →  Bronkhorst F-200CV (propar library, 1 Hz)
-  Serial      →  Keller Series 30 absolute pressure/temperature (keller-protocol, 1 Hz)
+  Serial      →  Keller pressure/temperature (keller-protocol library, COM15)
 
 Wiring (LabJack U3)
 -------------------
   Transmitter +  →  VS  (5 V supply, pin 1)
   Transmitter −  →  FIO0  and one leg of 98.6 Ω shunt
   Other shunt leg →  GND (pin 2)
-  FIO0 reads the voltage across the shunt; I = V / R, P = (I_mA − 4) × (10/16) × 1.0201 + 0.036
+  FIO0 reads the voltage across the shunt; I = V / R, P = (I_mA − 4) × (10/16) + 0.036
 
   Vacuum gauge analog out  →  FIO2 (log-linear: log10(P/mbar) = 5.389 × V − 11.329)
 
@@ -31,20 +31,11 @@ Configuration
 -------------
   Edit the CONFIGURATION block below before first run.
 
-Calibration History
--------------------
-  Event 1 — 15/05/2026
-    Shunt resistance corrected: 100.0 Ω (assumed) → 98.6 Ω (measured)
-    Atmospheric reference corrected: 1.000 bar (assumed) → 0.953 bar (MeteoSwiss BER)
-    Constants updated: LABJACK_SHUNT_OHM = 98.6, LABJACK_P_OFFSET = 0.036
-    Data before 15/05/2026 requires post-acquisition correction via CORRECT_GAUGE-LOGS.py
-
-  Event 2 — 29/05/2026
-    Keller Series 30 cross-calibration across 0.93–3.60 bar (N2, capillary bench)
-    Regression: Keller = 1.0201 × GEMS + 0.0358  (OLS, Keller as reference)
-    Gain correction applied: LABJACK_C_FACTOR = 1.0201
-    Offset (0.0358 bar) consistent with existing LABJACK_P_OFFSET — no change needed
-    Full record: CALIBRATION/GEMS_Calibration_Record.docx
+Calibration Note
+----------------
+  Data collected before 15 May 2026 used incorrect calibration values
+  (100 Ω shunt, 0.13 bar offset) and requires post-acquisition correction
+  via CORRECT_GAUGE-LOGS.py. Data collected after 15 May 2026 is correct.
 """
 
 import os
@@ -56,27 +47,20 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-try:
-    from keller_protocol import keller_protocol as kp
-except ImportError:
-    kp = None
-
+from keller_protocol import keller_protocol as kp
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIGURATION  — edit these before running
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Bronkhorst F-200CV EL-Flow connection
-ELFLOW_PORT      = None   # None = auto-detect; set to e.g. "COM3" to skip scanning
-ELFLOW_BAUDRATE  = 38400
-ELFLOW_NODE      = 3      # propar node address (found via scan)
+ELFLOW_PORT     = None    # None = auto-detect; set to e.g. "COM3" to try that port first
+ELFLOW_BAUDRATE = 38400
+ELFLOW_NODE     = 3       # propar node address (found via scan)
 ELFLOW_FULLSCALE = 3.0    # mln/min He
 
-# Keller Series 30 pressure/temperature sensor
-# Set KELLER_ENABLED = True when running a calibration cross-check session.
-# When False, the Keller thread is not started and Keller columns log as empty.
-KELLER_ENABLED = False  # Standard setup — Keller not attached
-KELLER_PORT    = None   # None = auto-detect; set to e.g. "COM15" to skip scanning
+# Keller pressure/temperature sensor
+KELLER_PORT    = None   # None = auto-detect; set to e.g. 'COM15' to skip scanning
 KELLER_BAUD    = 9600
 KELLER_ADDR    = 250
 KELLER_TIMEOUT = 0.3
@@ -87,7 +71,7 @@ KELLER_POLL_HZ = 1
 LOG_INTERVAL_S = 20       # seconds between logged rows
 
 # LabJack internal sampling — polls faster than logging to average out quantisation noise
-LABJACK_SAMPLE_HZ = 10    # Hz at which the LabJack is actually read
+LABJACK_SAMPLE_HZ = 10   # Hz at which the LabJack is actually read
 # Each logged upstream pressure value is the mean of all samples in the LOG_INTERVAL_S window
 # (e.g. 10 Hz × 20 s = 200 samples averaged per row → noise floor reduced ~14×)
 
@@ -96,32 +80,26 @@ POLLING_HZ = 1            # Hz
 
 # LabJack U3 configuration
 # Note: on the U3, FIO pins double as analogue inputs; getAIN(n) reads FIOn.
-LABJACK_FIO_UPSTREAM = 0  # FIO pin for upstream transmitter shunt (4–20 mA)
-LABJACK_FIO_VACUUM   = 2  # FIO pin for vacuum gauge analog voltage output
+LABJACK_FIO_UPSTREAM = 0   # FIO pin for upstream transmitter shunt (4–20 mA)
+LABJACK_FIO_VACUUM   = 2   # FIO pin for vacuum gauge analog voltage output
 
-# ── GEMS CALIBRATION CONSTANTS ───────────────────────────────────────────────
-# Full calibration history in CALIBRATION/GEMS_Calibration_Record.docx
-
-# Calibration Event 1 — 15/05/2026
-# Shunt measured with calibrated multimeter; offset from MeteoSwiss BER (953 hPa)
+# CORRECTED CALIBRATION VALUES (15 May 2026)
+# Calibrated: 20 March 2026, vented to atmosphere (953 hPa, MeteoSwiss BER)
+# Shunt measured with calibrated multimeter
 LABJACK_SHUNT_OHM = 98.6   # Measured shunt resistance (Ω)
-LABJACK_P_OFFSET  = 0.036  # Calibrated zero offset (bar)
-# Previous values (before 15/05/2026): 100.0 Ω, 0.13 bar — use CORRECT_GAUGE-LOGS.py
-
-# Calibration Event 2 — 29/05/2026
-# Gain correction from Keller cross-calibration: Keller = 1.0201 × GEMS + 0.0358
-# Offset term (0.0358) consistent with LABJACK_P_OFFSET above — no separate correction needed
-LABJACK_C_FACTOR  = 1.0201  # Gain correction factor (dimensionless)
-
-# 4–20 mA → pressure conversion parameters
-# Formula: pressure_bar = (I_mA − I_MIN) × (P_SPAN / I_SPAN) × C_FACTOR + P_OFFSET
-LABJACK_I_MIN  = 4.0    # mA at zero pressure (transmitter lower range value)
-LABJACK_I_SPAN = 16.0   # mA full-span (20 − 4)
-LABJACK_P_SPAN = 10.0   # bar full-span of the transmitter
+LABJACK_P_OFFSET  = 0.036  # Calibrated offset (bar) at 953 hPa atmospheric
+# Previous values (before 15 May 2026): 100.0 Ω, 0.13 bar (assumed 1.00 bar)
+# Historical data requires correction via CORRECT_GAUGE-LOGS.py
 
 # Vacuum gauge log-linear conversion: log10(P / mbar) = VACUUM_SLOPE × V + VACUUM_INTERCEPT
 VACUUM_SLOPE     =  5.389   # decades per volt
 VACUUM_INTERCEPT = -11.329  # log10(mbar) at 0 V
+
+# 4–20 mA → pressure conversion parameters
+# Formula: pressure_bar = (I_mA − I_MIN) × (P_SPAN / I_SPAN) + P_OFFSET
+LABJACK_I_MIN    = 4.0   # mA at zero / minimum pressure
+LABJACK_I_SPAN   = 16.0  # mA full-span  (20 − 4)
+LABJACK_P_SPAN   = 10.0  # bar full-span of the transmitter
 
 # Output CSV path — saved in the same folder as this script, timestamped at launch
 CSV_PATH = Path(__file__).parent / f"gauge_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
@@ -133,7 +111,7 @@ CSV_PATH = Path(__file__).parent / f"gauge_log_{datetime.now().strftime('%Y%m%d_
 
 def _probe_elflow_port(port, baudrate, node):
     """Try to open *port* and read from *node*. Returns a propar master on
-    success, None on failure."""
+    success, None on failure. Always closes the connection on failure."""
     try:
         master = propar.master(port, baudrate)
         result = master.read_parameters([{
@@ -204,16 +182,22 @@ def _probe_keller_port(port, baud, addr, timeout, echo):
         bus.f48(addr)   # firmware/device info — raises on no response
         return bus
     except Exception:
-        pass
+        try:
+            bus  # noqa: B018  (just checking if it was assigned)
+        except UnboundLocalError:
+            pass
+        else:
+            try:
+                del bus
+            except Exception:
+                pass
     return None
 
 
 def detect_keller(hint_port, baud, addr, timeout, echo):
-    """Locate the Keller on any available COM port.
-
-    Returns (port_name, KellerProtocol instance).
-    Raises RuntimeError if nothing responds.
-    """
+    """Locate the Keller on any available COM port, skipping ports already
+    claimed by the EL-Flow. Returns (port_name, KellerProtocol instance).
+    Raises RuntimeError if nothing responds."""
     from serial.tools import list_ports
 
     candidates = []
@@ -246,15 +230,11 @@ def detect_keller(hint_port, baud, addr, timeout, echo):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def voltage_to_pressure(voltage):
-    """Convert FIO0 voltage across shunt resistor to upstream pressure in bar.
-
-    Applies gain correction LABJACK_C_FACTOR from Keller cross-calibration
-    (Calibration Event 2, 29/05/2026).
-    """
+    """Convert FIO0 voltage across shunt resistor to upstream pressure in bar."""
     i_ma = (voltage / LABJACK_SHUNT_OHM) * 1000.0
     if not (LABJACK_I_MIN - 0.5 <= i_ma <= LABJACK_I_MIN + LABJACK_I_SPAN + 0.5):
         return None
-    return (i_ma - LABJACK_I_MIN) * (LABJACK_P_SPAN / LABJACK_I_SPAN) * LABJACK_C_FACTOR + LABJACK_P_OFFSET
+    return (i_ma - LABJACK_I_MIN) * (LABJACK_P_SPAN / LABJACK_I_SPAN) + LABJACK_P_OFFSET
 
 
 def voltage_to_vacuum_pressure(voltage):
@@ -426,17 +406,13 @@ def main():
     print("=" * 100)
     print("  Gauge Logger  —  press Ctrl-C to stop")
     print("=" * 100)
-    print(f"  LabJack U3  : FIO{LABJACK_FIO_UPSTREAM} upstream pressure  {LABJACK_SHUNT_OHM} Ω shunt  gain={LABJACK_C_FACTOR}  offset={LABJACK_P_OFFSET} bar")
+    print(f"  LabJack U3  : FIO{LABJACK_FIO_UPSTREAM} upstream pressure  {LABJACK_SHUNT_OHM} Ω shunt")
     print(f"  LabJack U3  : FIO{LABJACK_FIO_VACUUM} vacuum gauge  (slope={VACUUM_SLOPE}, intercept={VACUUM_INTERCEPT})")
     port_label = ELFLOW_PORT if ELFLOW_PORT else "auto-detect"
     print(f"  EL-Flow     : {port_label}  {ELFLOW_BAUDRATE} baud  node {ELFLOW_NODE}  (FS={ELFLOW_FULLSCALE} mln/min He)")
-    if KELLER_ENABLED:
-        keller_label = KELLER_PORT if KELLER_PORT else "auto-detect"
-        print(f"  Keller      : {keller_label}  {KELLER_BAUD} baud  address {KELLER_ADDR}  [ENABLED]")
-    else:
-        print(f"  Keller      : DISABLED  (set KELLER_ENABLED = True for calibration runs)")
-    keller_hz = f", Keller {KELLER_POLL_HZ} Hz" if KELLER_ENABLED else ""
-    print(f"  Sampling    : LabJack {LABJACK_SAMPLE_HZ} Hz, EL-Flow {POLLING_HZ} Hz{keller_hz}  →  logged every {LOG_INTERVAL_S} s")
+    keller_label = KELLER_PORT if KELLER_PORT else "auto-detect"
+    print(f"  Keller      : {keller_label}  {KELLER_BAUD} baud  address {KELLER_ADDR}")
+    print(f"  Sampling    : LabJack {LABJACK_SAMPLE_HZ} Hz, EL-Flow {POLLING_HZ} Hz, Keller {KELLER_POLL_HZ} Hz  →  logged every {LOG_INTERVAL_S} s")
     print(f"  Output CSV  : {CSV_PATH}")
     print("=" * 100)
 
@@ -444,17 +420,11 @@ def main():
 
     t_lj = threading.Thread(target=labjack_thread, args=(stop_event,), daemon=True)
     t_ef = threading.Thread(target=elflow_thread,  args=(stop_event,), daemon=True)
+    t_ke = threading.Thread(target=keller_thread,  args=(stop_event,), daemon=True)
 
     t_lj.start()
     t_ef.start()
-
-    if KELLER_ENABLED:
-        if kp is None:
-            print("[Keller] WARNING: keller-protocol not installed — Keller disabled.")
-            print("[Keller]   Run: pip install keller-protocol")
-        else:
-            t_ke = threading.Thread(target=keller_thread, args=(stop_event,), daemon=True)
-            t_ke.start()
+    t_ke.start()
 
     header = [
         "timestamp",
@@ -470,12 +440,8 @@ def main():
         writer.writerow(header)
 
         row_count = 0
-        if KELLER_ENABLED:
-            print(f"\n{'Timestamp':<26} {'GEMS up (bar)':>14} {'Vacuum (mbar)':>14} {'EL-Flow (mln/min)':>18} {'Keller P1 (bar)':>16} {'Keller T (°C)':>14} {'N_P':>5} {'N_EF':>5}")
-            print("-" * 118)
-        else:
-            print(f"\n{'Timestamp':<26} {'GEMS up (bar)':>14} {'Vacuum (mbar)':>14} {'EL-Flow (mln/min)':>18} {'N_P':>5} {'N_EF':>5}")
-            print("-" * 88)
+        print(f"\n{'Timestamp':<26} {'GEMS up (bar)':>14} {'Vacuum (mbar)':>14} {'EL-Flow (mln/min)':>18} {'Keller P1 (bar)':>16} {'Keller T (°C)':>14} {'N_P':>5} {'N_EF':>5}")
+        print("-" * 118)
 
         try:
             while True:
@@ -484,19 +450,21 @@ def main():
                 ts = datetime.now().isoformat(timespec="milliseconds")
 
                 with state["lock"]:
+                    # Upstream pressure — average and reset
                     up_samp  = state["upstream_samples"]
                     upstream = sum(up_samp) / len(up_samp) if up_samp else None
                     n_up     = len(up_samp)
                     state["upstream_samples"] = []
 
+                    # EL-Flow — average and reset
                     ef_samp = state["elflow_samples"]
                     elflow  = sum(ef_samp) / len(ef_samp) if ef_samp else None
                     n_ef    = len(ef_samp)
                     state["elflow_samples"] = []
 
-                    vacuum    = state["vacuum_chamber_pressure_mbar"]
-                    keller_p1 = state["keller_p1"]
-                    keller_t  = state["keller_tob1"]
+                    vacuum     = state["vacuum_chamber_pressure_mbar"]
+                    keller_p1  = state["keller_p1"]
+                    keller_t   = state["keller_tob1"]
 
                 row = [ts, upstream, vacuum, elflow, keller_p1, keller_t]
                 writer.writerow(row)
@@ -505,17 +473,11 @@ def main():
                 if row_count % 5 == 0:
                     os.fsync(csvfile.fileno())
 
-                if KELLER_ENABLED:
-                    print(
-                        f"{ts:<26} {fmt(upstream):>14} {fmt_sci(vacuum):>14} "
-                        f"{fmt(elflow):>18} {fmt(keller_p1):>16} {fmt(keller_t, 2):>14} "
-                        f"{n_up:>5} {n_ef:>5}"
-                    )
-                else:
-                    print(
-                        f"{ts:<26} {fmt(upstream):>14} {fmt_sci(vacuum):>14} "
-                        f"{fmt(elflow):>18} {n_up:>5} {n_ef:>5}"
-                    )
+                print(
+                    f"{ts:<26} {fmt(upstream):>14} {fmt_sci(vacuum):>14} "
+                    f"{fmt(elflow):>18} {fmt(keller_p1):>16} {fmt(keller_t, 2):>14} "
+                    f"{n_up:>5} {n_ef:>5}"
+                )
 
         except KeyboardInterrupt:
             print("\n\nStopped by user.")
@@ -523,8 +485,7 @@ def main():
             stop_event.set()
             t_lj.join(timeout=3)
             t_ef.join(timeout=2)
-            if KELLER_ENABLED and kp is not None:
-                t_ke.join(timeout=3)
+            t_ke.join(timeout=3)
             print(f"Data saved to {CSV_PATH}  ({row_count} rows)")
 
 

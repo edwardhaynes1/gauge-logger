@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Correct upstream pressure gauge readings for shunt resistance and 
+# VERSION 1 — used to generate *_CORRECTED.csv files on 15/05/2026
+# Superseded by CORRECT_GAUGE-LOGS.py in root (updated 29/05/2026)
+
+Corrects upstream pressure gauge readings for shunt resistance and 
 atmospheric reference errors.
 
 Calibration errors:
