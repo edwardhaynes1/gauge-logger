@@ -2,6 +2,10 @@
 
 Data acquisition system for capillary flow characterisation. Logs upstream pressure, vacuum chamber pressure, and mass flow rate to CSV for Hagen–Poiseuille validation experiments.
 
+## Experiment setup
+
+![Experiment setup](DOCS/experiment-setup.png)
+
 ## Hardware
 
 | Component | Description |
